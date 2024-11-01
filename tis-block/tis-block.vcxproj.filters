@@ -13,10 +13,51 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="소스 파일\Scenes">
+      <UniqueIdentifier>{1af05923-cfd5-4bd2-a9c2-66562493978f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="WinMain.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Screen.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneInGame.cpp">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneMain.cpp">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneShutdown.cpp">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneStartup.cpp">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Screen.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneInGame.h">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneMain.h">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneShutdown.h">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneStartup.h">
+      <Filter>소스 파일\Scenes</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

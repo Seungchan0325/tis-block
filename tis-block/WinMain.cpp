@@ -1,98 +1,76 @@
-#include <windows.h>
+ï»¿#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 
-#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
-#define SCREEN_WIDTH 157
-#define SCREEN_HEIGHT 45
+#include "common.h"
+#include "Screen.h"
+#include "SceneStartup.h"
+#include "SceneMain.h"
+#include "SceneInGame.h"
+#include "SceneShutdown.h"
 
-int fps, hOutIdx;
+using namespace std;
+
 bool isRunning;
-HANDLE hOut, hOutDouble[2], hIn;
-DWORD fdwSaveOldMode;
-
-void FlipBuffer()
-{
-    SetConsoleActiveScreenBuffer(hOutDouble[hOutIdx]);
-    hOutIdx = !hOutIdx;
-    hOut = hOutDouble[hOutIdx];
-}
-
-void ClearBuffer(HANDLE hConsoleOutputBuffer)
-{
-    DWORD numOfWritten;
-    FillConsoleOutputCharacter(hConsoleOutputBuffer, L' ', SCREEN_WIDTH * SCREEN_HEIGHT, { 0, 0 }, &numOfWritten);
-}
+wstring s;
 
 BOOL Startup()
 {
-    // Set Console
-    if (!AllocConsole()) {
-        return FALSE;
-    }
-
-    hOutDouble[0] = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOutDouble[0] == INVALID_HANDLE_VALUE) {
-        return FALSE;
-    }
-
-    hOutIdx = 0;
-    if (!SetConsoleActiveScreenBuffer(hOutDouble[hOutIdx])) {
-        return FALSE;
-    }
-
-    if (!SetConsoleDisplayMode(hOutDouble[0], CONSOLE_FULLSCREEN_MODE, NULL)) {
-        return FALSE;
-    }
-
-    if (!SetConsoleScreenBufferSize(hOutDouble[0], { SCREEN_WIDTH, SCREEN_HEIGHT })) {
-        return FALSE;
-    }
-
-    hOutDouble[1] = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
-
-    if (hOutDouble[1] == INVALID_HANDLE_VALUE) {
-        return FALSE;
-    }
-
-    hIn = GetStdHandle(STD_INPUT_HANDLE);
-    if (hIn == INVALID_HANDLE_VALUE) {
-        return FALSE;
-    }
-
-    if (!GetConsoleMode(hIn, &fdwSaveOldMode)) {
-        return FALSE;
-    }
-
-    if (!SetConsoleMode(hIn, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT)) {
-        return FALSE;
-    }
-
-    if (!SetConsoleTitle(L"TIS-BLOCK")) {
-        return FALSE;
+    if (!ScreenInit()) {
+        ErrorExit(L"Screen initialization failed");
     }
 
     isRunning = true;
+
+    // Scene Init
+    scene = SceneName::Startup;
+    nextScene = SceneName::None;
+    SceneStartupEnter();
 
     return TRUE;
 }
 
 void Update()
 {
-    DWORD NumEvents;
-    GetNumberOfConsoleInputEvents(hIn, &NumEvents);
-
-    if (NumEvents) {
-        INPUT_RECORD InBuffer[128];
-        DWORD InBufferSz;
-        if (!ReadConsoleInput(hIn, InBuffer, ARRAYSIZE(InBuffer), &InBufferSz)) {
+    // Read inputs
+    DWORD numEvents;
+    GetNumberOfConsoleInputEvents(hIn, &numEvents);
+    if (numEvents) {
+        INPUT_RECORD inBuffer[128];
+        DWORD inBufferSz;
+        if (!ReadConsoleInput(hIn, inBuffer, ARRAYSIZE(inBuffer), &inBufferSz)) {
             return;
         }
 
-        for (int i = 0; i < InBufferSz; i++) {
-            if (InBuffer[i].EventType == MOUSE_EVENT) {
+        for (int i = 0; i < (int)inBufferSz; i++) {
+            if (inBuffer[i].EventType == KEY_EVENT) {
+                s.push_back((wchar_t)inBuffer[i].Event.KeyEvent.uChar.UnicodeChar);
             }
         }
+    }
+
+    switch (scene) {
+    case SceneName::Startup: {
+        SceneStartupUpdate();
+        break;
+    }
+    case SceneName::Main: {
+        SceneMainUpdate();
+        break;
+    }
+    case SceneName::InGame: {
+        SceneInGameUpdate();
+        break;
+    }
+    case SceneName::Shutdown: {
+        SceneShutdownUpdate();
+        break;
+    }
+    default: {
+        ErrorExit(L"switch exception");
+        break;
+    }
     }
 }
 
@@ -100,11 +78,37 @@ void Render()
 {
     ClearBuffer(hOut);
 
-    SetConsoleCursorPosition(hOut, {0, 0});
-    wchar_t s[256];
-    wsprintf(s, L"¾È³çÇÏ¼¼¿ä %d\r\n", fps);
-    int len = wcslen(s);
-    WriteConsole(hOut, s, len, NULL, NULL);
+    SetConsoleCursorPosition(hOut, {1, 1});
+    wchar_t ss[256];
+    wsprintf(ss, L"ì•ˆë…•í•˜ì„¸ìš” %d\r\n", fps);
+    int len = (int)wcslen(ss);
+    WriteConsole(hOut, ss, len, NULL, NULL);
+
+    SetConsoleCursorPosition(hOut, { 10, 10 });
+    WriteConsole(hOut, s.c_str(), s.size(), NULL, NULL);
+
+    switch (scene) {
+    case SceneName::Startup: {
+        SceneStartupRender();
+        break;
+    }
+    case SceneName::Main: {
+        SceneMainRender();
+        break;
+    }
+    case SceneName::InGame: {
+        SceneInGameRender();
+        break;
+    }
+    case SceneName::Shutdown: {
+        SceneShutdownEnter();
+        break;
+    }
+    default: {
+        ErrorExit(L"switch exception");
+        break;
+    }
+    }
 
     FlipBuffer();
 }
@@ -112,38 +116,88 @@ void Render()
 void Shutdown()
 {
     isRunning = false;
-    SetConsoleMode(hIn, fdwSaveOldMode);
+    switch (scene)
+    {
+    case SceneName::Startup: {
+        SceneStartupExit();
+        break;
+    }
+    case SceneName::Main: {
+        SceneMainExit();
+        break;
+    }
+    case SceneName::InGame: {
+        SceneInGameExit();
+        break;
+    }
+    case SceneName::Shutdown: {
+        SceneShutdownExit();
+        break;
+    }
+    default: {
+        ErrorExit(L"switch exception");
+        break;
+    }
+    }
+    ScreenShutdown();
 }
 
-int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ PWSTR pCmdLine, _In_ int nCmdShow)
 {
     if (!Startup()) {
         return GetLastError();
     }
 
-    long long prevTick = GetTickCount64();
-    long long prevSec = GetTickCount64();
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    ticksPerSec = freq.QuadPart;
+
+    long long prevTick = GetTicks();
+    long long prevSec = GetTicks();
     while (isRunning) {
+        if (nextScene != SceneName::None) {
+            switch (scene)
+            {
+            case SceneName::Startup: {
+                SceneStartupExit();
+                break;
+            }
+            case SceneName::Main: {
+                SceneMainExit();
+                break;
+            }
+            case SceneName::InGame: {
+                SceneInGameExit();
+                break;
+            }
+            case SceneName::Shutdown: {
+                SceneShutdownExit();
+                break;
+            }
+            default: {
+                ErrorExit(L"switch exception");
+                break;
+            }
+            }
+            scene = nextScene;
+            nextScene = SceneName::None;
+        }
         Update();
         Render();
 
-        long long curTick = GetTickCount64();
-        while (curTick - prevTick <= 33) {
-            curTick = GetTickCount64();
+        long long curTick = GetTicks();
+        while (curTick - prevTick <= ticksPerSec / 30) {
+            curTick = GetTicks();
         }
 
-        if (curTick - prevSec >= 1000) {
+        prevTick = curTick;
+
+        if (curTick - prevSec >= ticksPerSec) {
             fps = 0;
             prevSec = curTick;
         }
         fps++;
-
-        prevTick = curTick;
     }
     Shutdown();
-
-    if (!FreeConsole()) {
-        return GetLastError();
-    }
     return 0;
 }
