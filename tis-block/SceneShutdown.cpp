@@ -2,15 +2,21 @@
 
 #include "SceneShutdown.h"
 #include "Scenes.h"
+#include "common.h"
+
+static long long enterTick;
 
 void SceneShutdownEnter()
 {
-
+	enterTick = GetTicks();
 }
 
 void SceneShutdownUpdate()
 {
-
+	if ((GetTicks() - enterTick) > 1 * ticksPerSec)
+	{
+		isRunning = false;
+	}
 }
 
 void SceneShutdownRender()

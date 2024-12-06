@@ -326,7 +326,7 @@ void SceneMainKeyEventProc(KEY_EVENT_RECORD ker)
 {
 	if (ker.bKeyDown) {
 		if (ker.wVirtualKeyCode == VK_ESCAPE) {
-			ChangeScene(SceneName::Startup);
+			ChangeScene(SceneName::Shutdown);
 		}
 	}
 }

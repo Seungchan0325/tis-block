@@ -9,6 +9,7 @@
 #include "Screen.h"
 #include "Scenes.h"
 #include "Filesystem.h"
+#include "VM.h"
 
 #define DESCRIPTION_BOX \
 	L"╔═════════════════════════════════╗"	\
@@ -67,40 +68,48 @@
 #define NODE_HEIGHT 12
 
 #define STOP_BTN \
-	L"╔═════════╗"	\
-	L"║  █████  ║"	\
-	L"║  █████  ║"	\
-	L"║   STOP  ║"	\
-	L"╚═════════╝"	\
+	L"╔═══════╗"	\
+	L"║ █████ ║"	\
+	L"║ █████ ║"	\
+	L"║  STOP ║"	\
+	L"╚═══════╝"	\
 
 
 #define STEP_BTN \
-	L"╔═════════╗"	\
-	L"║         ║"	\
-	L"║         ║"	\
-	L"║   STEP  ║"	\
-	L"╚═════════╝"	\
+	L"╔═══════╗"	\
+	L"║       ║"	\
+	L"║       ║"	\
+	L"║  STEP ║"	\
+	L"╚═══════╝"	\
 
 
 #define RUN_BTN \
-	L"╔═════════╗"	\
-	L"║         ║"	\
-	L"║         ║"	\
-	L"║   RUN   ║"	\
-	L"╚═════════╝"	\
+	L"╔═══════╗"	\
+	L"║       ║"	\
+	L"║       ║"	\
+	L"║  RUN  ║"	\
+	L"╚═══════╝"	\
 
 
 #define FAST_BTN \
-	L"╔═════════╗"	\
-	L"║         ║"	\
-	L"║         ║"	\
-	L"║   FAST  ║"	\
-	L"╚═════════╝"	\
+	L"╔═══════╗"	\
+	L"║       ║"	\
+	L"║       ║"	\
+	L"║  FAST ║"	\
+	L"╚═══════╝"	\
 
-#define BTN_WIDTH 11
+#define BTN_WIDTH 9
 #define BTN_HEIGHT 5
 
+enum class RunState {
+	STOP,
+	STEP,
+	RUN,
+	FAST,
+};
+
 struct NodeBox {
+	int id;
 	bool is_selected;
 	COORD cursor;
 	SMALL_RECT rect;
@@ -127,9 +136,11 @@ static SMALL_RECT stepBtnRect;
 static SMALL_RECT runBtnRect;
 static SMALL_RECT fastBtnRect;
 
+static bool isProgramRunning = false;
+static RunState runState = RunState::STOP;
 static Puzzle puzzle;
 static Program program;
-static NodeBox nodes[NODE_NUM];
+static NodeBox nodes_box[NODE_NUM];
 static int selectedNode = 0;
 
 static void DrawSidebar()
@@ -138,7 +149,6 @@ static void DrawSidebar()
 	short right = left + DESCRIPTION_WIDTH - 1;
 
 	WriteText("- " + puzzle.name + " -", {left, 1, right, 1}, Align::CenterTop);
-
 
 	// Draw description
 	{
@@ -175,6 +185,11 @@ static void DrawSidebar()
 			cursor.Y++;
 		}
 	}
+
+	WriteConsoleOutput(hOut, stopBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &stopBtnRect);
+	WriteConsoleOutput(hOut, stepBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &stepBtnRect);
+	WriteConsoleOutput(hOut, runBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &runBtnRect);
+	WriteConsoleOutput(hOut, fastBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &fastBtnRect);
 }
 
 static void DrawNode(NodeBox node)
@@ -188,10 +203,43 @@ static void DrawNode(NodeBox node)
 			WriteConsoleA(hOut, node.lines[i].c_str(), node.lines[i].size(), NULL, NULL);
 		}
 
-		if (node.is_selected) {
+		if (runState == RunState::STOP && node.is_selected) {
 			COORD absCusor = { node.rect.Left + 1 + node.cursor.X, node.rect.Top + 1 + node.cursor.Y };
 			DWORD written;
 			FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, 1, absCusor, &written);
+		}
+
+		if (runState != RunState::STOP) {
+			if (nodes[node.id].compute.mode != ComputeNodeMode::IDLE) {
+				int PC = nodes[node.id].compute.PC;
+				int line = nodes[node.id].compute.PC2Line[PC];
+				COORD absCusor = { node.rect.Left + 1, node.rect.Top + 1 + line };
+				DWORD written;
+				FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, LINE_WIDTH, absCusor, &written);
+			}
+			SMALL_RECT infoRect;
+			infoRect.Top = 2;
+			infoRect.Bottom = 2;
+			infoRect.Left = 19;
+			infoRect.Right = 25;
+			infoRect.Top += node.rect.Top;
+			infoRect.Bottom += node.rect.Top;
+			infoRect.Left += node.rect.Left;
+			infoRect.Right += node.rect.Left;
+			WriteText(std::to_string(nodes[node.id].compute.ACC), infoRect, Align::CenterTop);
+
+			infoRect.Top += 2;
+			infoRect.Bottom += 2;
+			WriteText(std::to_string(nodes[node.id].compute.BAK), infoRect, Align::CenterTop);
+
+			infoRect.Top += 2;
+			infoRect.Bottom += 2;
+			if (nodes[node.id].LAST == -1) {
+				WriteText("N/A", infoRect, Align::CenterTop);
+			}
+			else {
+				WriteText(std::to_string(nodes[node.id].LAST), infoRect, Align::CenterTop);
+			}
 		}
 	}
 	else if (node.type == NodeTileType::TILE_DAMAGED) {
@@ -341,54 +389,122 @@ void SceneInGameEnter()
 		fastBtnBuffer[i].Attributes = FOREGROUND_WHITE;
 	}
 
+	int btnTop = 39;
+	int btnLeft = 2;
+
+	stopBtnRect.Top = btnTop;
+	stopBtnRect.Bottom = stopBtnRect.Top + BTN_HEIGHT - 1;
+	stopBtnRect.Left = btnLeft;
+	stopBtnRect.Right = stopBtnRect.Left + BTN_WIDTH - 1;
+
+	stepBtnRect.Top = btnTop;
+	stepBtnRect.Bottom = stepBtnRect.Top + BTN_HEIGHT - 1;
+	stepBtnRect.Left = btnLeft + BTN_WIDTH + 1;
+	stepBtnRect.Right = stepBtnRect.Left + BTN_WIDTH - 1;
+
+	runBtnRect.Top = btnTop;
+	runBtnRect.Bottom = runBtnRect.Top + BTN_HEIGHT - 1;
+	runBtnRect.Left = btnLeft + BTN_WIDTH * 2 + 2;
+	runBtnRect.Right = runBtnRect.Left + BTN_WIDTH - 1;
+	
+	fastBtnRect.Top = btnTop;
+	fastBtnRect.Bottom = fastBtnRect.Top + BTN_HEIGHT - 1;
+	fastBtnRect.Left = btnLeft + BTN_WIDTH * 3 + 3;
+	fastBtnRect.Right = fastBtnRect.Left + BTN_WIDTH - 1;
+
 	puzzle = LoadPuzzle(puzzlePath);
 	program = LoadProgram(programPath);
 
 	for (int i = 0; i < NODE_NUM; i++) {
-		nodes[i].type = puzzle.layout[i];
-		nodes[i].lines = program.nodes[i].lines;
-		nodes[i].cursor = { 0, 0 };
-		nodes[i].is_selected = false;
+		nodes_box[i].id = i;
+		nodes_box[i].type = puzzle.layout[i];
+		nodes_box[i].lines = program.nodes[i].lines;
+		nodes_box[i].cursor = { 0, 0 };
+		nodes_box[i].is_selected = false;
 
-		if (nodes[i].type == NodeTileType::TILE_COMPUTE && nodes[i].lines.empty())
-			nodes[i].lines.push_back("");
+		if (nodes_box[i].type == NodeTileType::TILE_COMPUTE && nodes_box[i].lines.empty())
+			nodes_box[i].lines.push_back("");
 
 		int x = i % 4;
 		int y = i / 4;
 		int left = 41 + x * (NODE_WIDTH + 4);
 		int top = 4 + y * (NODE_HEIGHT + 1);
-		nodes[i].rect.Top = top;
-		nodes[i].rect.Bottom = top + NODE_HEIGHT - 1;
-		nodes[i].rect.Left = left;
-		nodes[i].rect.Right = left + NODE_WIDTH - 1;
+		nodes_box[i].rect.Top = top;
+		nodes_box[i].rect.Bottom = top + NODE_HEIGHT - 1;
+		nodes_box[i].rect.Left = left;
+		nodes_box[i].rect.Right = left + NODE_WIDTH - 1;
 
-		nodes[i].textRect.Top = top + 1;
-		nodes[i].textRect.Bottom = nodes[i].textRect.Top + LINE_NUM - 1;
-		nodes[i].textRect.Left = left + 1;
-		nodes[i].textRect.Right = nodes[i].textRect.Left + LINE_WIDTH;
+		nodes_box[i].textRect.Top = top + 1;
+		nodes_box[i].textRect.Bottom = nodes_box[i].textRect.Top + LINE_NUM - 1;
+		nodes_box[i].textRect.Left = left + 1;
+		nodes_box[i].textRect.Right = nodes_box[i].textRect.Left + LINE_WIDTH;
 	}
 
 	selectedNode = 0;
-	nodes[selectedNode].is_selected = true;
+	nodes_box[selectedNode].is_selected = true;
 }
 
 static void AdaptNodeLines()
 {
 	for (int i = 0; i < NODE_NUM; i++) {
-		program.nodes[i].lines = nodes[i].lines;
+		program.nodes[i].lines = nodes_box[i].lines;
 	}
+}
+
+static void Stop()
+{
+	if (isProgramRunning) {
+		ExitVM();
+		isProgramRunning = false;
+	}
+	runState = RunState::STOP;
+}
+
+static void Step()
+{
+	if (!isProgramRunning) {
+		InitVM(puzzle, program);
+		isProgramRunning = true;
+	}
+
+	runState = RunState::STEP;
+	TickVM();
+}
+
+static void Run()
+{
+	if (!isProgramRunning) {
+		InitVM(puzzle, program);
+		isProgramRunning = true;
+	}
+	runState = RunState::RUN;
+}
+
+static void Fast()
+{
+	if (!isProgramRunning) {
+		InitVM(puzzle, program);
+		isProgramRunning = true;
+	}
+	runState = RunState::FAST;
 }
 
 void SceneInGameUpdate()
 {
-
+	if (runState == RunState::RUN) {
+		TickVM();
+	}
+	else if (runState == RunState::FAST) {
+		for (int iter = 0; iter < 100; iter++)
+			TickVM();
+	}
 }
 
 void SceneInGameRender()
 {
 	for (int i = 0; i < NODE_NUM; i++)
 	{
-		DrawNode(nodes[i]);
+		DrawNode(nodes_box[i]);
 	}
 	DrawSidebar();
 }
@@ -399,6 +515,8 @@ void SceneInGameExit()
 
 void SceneInGameKeyEventProc(KEY_EVENT_RECORD ker)
 {
+	if (isProgramRunning) return;
+
 	if (ker.bKeyDown == FALSE) {
 		if (ker.wVirtualKeyCode == VK_ESCAPE) {
 			ChangeScene(SceneName::Main);
@@ -406,32 +524,33 @@ void SceneInGameKeyEventProc(KEY_EVENT_RECORD ker)
 	}
 	else if (ker.bKeyDown == TRUE) {
 		if (ker.wVirtualKeyCode == VK_RETURN) {
-			NewLineNode(nodes[selectedNode]);
+			NewLineNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_UP) {
-			MoveCusorUpNode(nodes[selectedNode]);
+			MoveCusorUpNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_DOWN) {
-			MoveCursorDownNode(nodes[selectedNode]);
+			MoveCursorDownNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_LEFT) {
-			MoveCursorLeftNode(nodes[selectedNode]);
+			MoveCursorLeftNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_RIGHT) {
-			MoveCursorRightNode(nodes[selectedNode]);
+			MoveCursorRightNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_BACK) {
-			BackspaceNode(nodes[selectedNode]);
+			BackspaceNode(nodes_box[selectedNode]);
 		}
 		else if (ker.wVirtualKeyCode == VK_DELETE) {
-			DeleteNode(nodes[selectedNode]);
+			DeleteNode(nodes_box[selectedNode]);
 		}
 		else if (isprint(ker.uChar.AsciiChar)) {
-			WriteCharToNode(nodes[selectedNode], ker.uChar.AsciiChar);
+			WriteCharToNode(nodes_box[selectedNode], ker.uChar.AsciiChar);
 		}
 
 		AdaptNodeLines();
 		SaveProgram(programPath, program);
+		program = LoadProgram(programPath);
 	}
 }
 
@@ -441,28 +560,41 @@ void SceneInGameMouseEventProc(MOUSE_EVENT_RECORD mer)
 	{
 		for (int i = 0; i < NODE_NUM; i++)
 		{
-			if (nodes[i].type == NodeTileType::TILE_COMPUTE && InRect(mer.dwMousePosition, nodes[i].textRect))
+			if (nodes_box[i].type == NodeTileType::TILE_COMPUTE && InRect(mer.dwMousePosition, nodes_box[i].textRect))
 			{
-				nodes[selectedNode].is_selected = false;
+				nodes_box[selectedNode].is_selected = false;
 
 				selectedNode = i;
-				nodes[selectedNode].is_selected = true;
+				nodes_box[selectedNode].is_selected = true;
 
 				int x = mer.dwMousePosition.X;
 				int y = mer.dwMousePosition.Y;
 
-				x -= nodes[i].rect.Left + 1;
-				y -= nodes[i].rect.Top + 1;
+				x -= nodes_box[i].rect.Left + 1;
+				y -= nodes_box[i].rect.Top + 1;
 
-				if (y < nodes[i].lines.size()) {
-					nodes[i].cursor.X = min(x, nodes[i].lines[y].length());
-					nodes[i].cursor.Y = y;
+				if (y < nodes_box[i].lines.size()) {
+					nodes_box[i].cursor.X = min(x, nodes_box[i].lines[y].length());
+					nodes_box[i].cursor.Y = y;
 				}
 				else {
-					nodes[i].cursor.Y = nodes[i].lines.size() - 1;
-					nodes[i].cursor.X = nodes[i].lines[nodes[i].cursor.Y].length();
+					nodes_box[i].cursor.Y = nodes_box[i].lines.size() - 1;
+					nodes_box[i].cursor.X = nodes_box[i].lines[nodes_box[i].cursor.Y].length();
 				}
 			}
+		}
+
+		if (InRect(mer.dwMousePosition, stopBtnRect)) {
+			Stop();
+		}
+		else if (InRect(mer.dwMousePosition, stepBtnRect)) {
+			Step();
+		}
+		else if (InRect(mer.dwMousePosition, runBtnRect)) {
+			Run();
+		}
+		else if (InRect(mer.dwMousePosition, fastBtnRect)) {
+			Fast();
 		}
 	}
 }

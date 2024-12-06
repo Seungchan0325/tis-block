@@ -75,4 +75,5 @@ void ClearBuffer(HANDLE hConsoleOutputBuffer)
 {
     DWORD numOfWritten;
     FillConsoleOutputCharacter(hConsoleOutputBuffer, L' ', SCREEN_WIDTH * SCREEN_HEIGHT, { 0, 0 }, &numOfWritten);
+	FillConsoleOutputAttribute(hConsoleOutputBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT, { 0, 0 }, &numOfWritten);
 }

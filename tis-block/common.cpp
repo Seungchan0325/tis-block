@@ -8,6 +8,7 @@
 #include "SceneInGame.h"
 #include "SceneShutdown.h"
 
+bool isRunning;
 int fps;
 long long ticksPerSec;
 

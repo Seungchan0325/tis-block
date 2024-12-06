@@ -13,8 +13,6 @@
 
 using namespace std;
 
-bool isRunning;
-
 BOOL Startup()
 {
     if (!ScreenInit()) {

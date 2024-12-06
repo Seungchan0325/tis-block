@@ -5,105 +5,120 @@
 
 #include "FileSystem.h"
 
-namespace VM
-{
 #define PROGRAM_NODES 12
 #define MAX_ACC 999
 #define MIN_ACC -999
-#define MAX_INST 15
-#define MAX_STACK 16
 
-	enum class Operation {
-		NOP,
-		MOV,
-		SWP,
-		SAV,
-		ADD,
-		SUB,
-		NEG,
-		JMP,
-		JEZ,
-		JNZ,
-		JGZ,
-		JLZ,
-		JRO,
-	};
+enum class Operation {
+	NOP,
+	MOV,
+	SWP,
+	SAV,
+	ADD,
+	SUB,
+	NEG,
+	JMP,
+	JEZ,
+	JNZ,
+	JGZ,
+	JLZ,
+	JRO,
+};
 
-	enum class LocationType {
-		NUMBER,
-		ADDRESS,
-	};
+enum class LocationType {
+	NUMBER,
+	ADDRESS,
+};
 	
-	enum class AddressType {
-		UP,
-		RIGHT,
-		DOWN,
-		LEFT,
-		NIL,
-		ACC,
-		ANY,
-		LAST
-	};
+enum class AddressType {
+	UP,
+	RIGHT,
+	DOWN,
+	LEFT,
+	NIL,
+	ACC,
+	ANY,
+	LAST
+};
 
-	union Location {
-		short number;
-		AddressType address;
-	};
+union Location {
+	short number;
+	AddressType address;
+};
 
-	struct Instruction {
-		Operation operation;
-		LocationType srcType;
-		Location src;
+struct Label {
+	int line;
+	int addr;
+	std::string name;
+};
 
-		LocationType dstType;
-		Location dst;
-	};
+struct Instruction {
+	Operation operation;
 
-	enum class NodeType {
-		ComputeNode,
-		MemoryNode,
-		DamagedNode,
-	};
+	LocationType srcType;
+	Location src;
 
-	enum class ComputeNodeMode {
-		IDLE,
-		RUN,
-		WRITE,
-		READ
-	};
+	LocationType dstType;
+	Location dst;
 
-	struct ComputeNode {
-		int ACC;
-		int BAK;
+	Label label;
+};
 
-		int ANY;
-		int LAST;
-		int UP, DOWN, LEFT, RIGHT;
-		int PC;
+enum class NodeType {
+	ComputeNode,
+	MemoryNode,
+	DamagedNode,
+};
 
-		ComputeNodeMode mode;
+enum class ComputeNodeMode {
+	IDLE,
+	RUN,
+	WRITE,
+	READ
+};
 
-		
-	};
+struct ComputeNode {
+	int ACC;
+	int BAK;
 
-	struct MemoryNode {
-		int stack[MAX_STACK];
-	};
+	int PC;
 
-	struct DamagedNode {
-	};
+	ComputeNodeMode mode;
 
-	struct Node {
-		NodeType type;
+	std::vector<int> PC2Line;
+	std::vector<std::string> lines;
+	std::vector<Label> labels;
+	std::vector<Instruction> instructions;
+};
 
-		// Use only one of these
-		ComputeNode compute;
-		MemoryNode memory;
-		DamagedNode damaged;
-	};
+struct MemoryNode {
+	std::vector<int> stack;
+};
 
-	Node nodes[PROGRAM_NODES];
+struct DamagedNode {
+};
 
-	void InitVM(Puzzle puzzle, Program program);
-	void TickVM();
-}
+struct Node {
+	int id;
+	NodeType type;
+
+	// Use only one of these
+	ComputeNode compute;
+	MemoryNode memory;
+	DamagedNode damaged;
+
+	bool writing;
+	bool reading;
+	bool anyPort;
+	int rwPort;
+	int outValue;
+
+	int LAST;
+	int UP, DOWN, LEFT, RIGHT;
+};
+
+extern std::vector<Node> nodes;
+
+void InitVM(Puzzle puzzle, Program program);
+void TickVM();
+void ExitVM();

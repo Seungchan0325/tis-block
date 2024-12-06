@@ -1,8 +1,8 @@
 #pragma once
 
 #include <Windows.h>
-
 #include <string>
+#include <cassert>
 
 #define FOREGROUND_WHITE (FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED)
 
@@ -18,6 +18,7 @@ enum class Align {
     RightBottom
 };
 
+extern bool isRunning;
 extern int fps;
 extern long long ticksPerSec;
 
