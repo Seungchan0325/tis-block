@@ -39,6 +39,15 @@
     <ClCompile Include="SceneStartup.cpp">
       <Filter>소스 파일\Scenes</Filter>
     </ClCompile>
+    <ClCompile Include="FileSystem.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Scenes.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="VM.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Screen.h">
@@ -59,5 +68,17 @@
     <ClInclude Include="SceneStartup.h">
       <Filter>소스 파일\Scenes</Filter>
     </ClInclude>
+    <ClInclude Include="FileSystem.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="VM.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="segments\segment01.txt" />
   </ItemGroup>
 </Project>
