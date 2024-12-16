@@ -20,15 +20,15 @@ BOOL ScreenInit()
     }
     
     // it is only for me
-    //if (!SetConsoleDisplayMode(hOut, CONSOLE_FULLSCREEN_MODE, NULL)) {
-    //    return FALSE;
-    //}
+    if (!SetConsoleDisplayMode(hOut, CONSOLE_FULLSCREEN_MODE, NULL)) {
+        return FALSE;
+    }
 
     // 콘솔 창을 최대화
-    HWND hwndConsole = GetConsoleWindow();
-    if (hwndConsole != NULL) {
-        ShowWindow(hwndConsole, SW_MAXIMIZE);
-    }
+    //HWND hwndConsole = GetConsoleWindow();
+    //if (hwndConsole != NULL) {
+    //    ShowWindow(hwndConsole, SW_MAXIMIZE);
+    //}
 
     if (!SetConsoleScreenBufferSize(hOut, { SCREEN_WIDTH, SCREEN_HEIGHT })) {
         return FALSE;

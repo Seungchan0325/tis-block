@@ -241,6 +241,10 @@ static void ParseLabels(Node& node)
 			}
 		}
 	}
+
+	for (int i = 0; i < node.compute.labels.size(); i++) {
+		node.compute.labels[i].addr %= addr;
+	}
 }
 
 static void NodeInit(Node& node)
@@ -713,9 +717,8 @@ void InitVM(Puzzle puzzle, Program program)
 			nodes[i].compute.lines = program.nodes[i].lines;
 			ParseLabels(nodes[i]);
 			ParseInstruction(nodes[i]);
-			if (!nodes[i].compute.instructions.empty()) {
+			if (!nodes[i].compute.instructions.empty())
 				nodes[i].compute.mode = ComputeNodeMode::RUN;
-			}
 			else
 				nodes[i].compute.mode = ComputeNodeMode::IDLE;
 		}
