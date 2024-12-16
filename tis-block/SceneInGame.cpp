@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include "common.h"
 #include "Screen.h"
@@ -17,12 +18,77 @@
 	L"║                                 ║"	\
 	L"║                                 ║"	\
 	L"║                                 ║"	\
+	L"║                                 ║"	\
+	L"║                                 ║"	\
+	L"║                                 ║"	\
 	L"╚═════════════════════════════════╝"	\
 
 #define DESCRIPTION_WIDTH 35
-#define DESCRIPTION_HEIGHT 6
+#define DESCRIPTION_HEIGHT 9
 
-#define COMPUTE_NODE \
+#define IN_STREAM_BOX \
+	L"╔═══╗" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"║   ║" \
+	L"╚═══╝" \
+
+#define IN_STREAM_BOX_WIDTH 5
+#define IN_STREAM_BOX_HEIGHT 26
+
+#define OUT_STREAM_BOX \
+	L"╔═══╦═══╗" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"║   ║   ║" \
+	L"╚═══╩═══╝" \
+
+#define OUT_STREAM_BOX_WIDTH 9
+#define OUT_STREAM_BOX_HEIGHT 26
+
+#define COMPUTE_NODE_ \
 	L"╔═════════════════╦═════╗"	\
 	L"║                 ║ ACC ║"	\
 	L"║                 ║     ║"	\
@@ -69,33 +135,33 @@
 
 #define STOP_BTN \
 	L"╔═══════╗"	\
-	L"║ █████ ║"	\
-	L"║ █████ ║"	\
 	L"║  STOP ║"	\
+	L"║       ║"	\
+	L"║ <ESC> ║"	\
 	L"╚═══════╝"	\
 
 
 #define STEP_BTN \
 	L"╔═══════╗"	\
-	L"║       ║"	\
-	L"║       ║"	\
 	L"║  STEP ║"	\
+	L"║       ║"	\
+	L"║  <F9> ║"	\
 	L"╚═══════╝"	\
 
 
 #define RUN_BTN \
 	L"╔═══════╗"	\
-	L"║       ║"	\
-	L"║       ║"	\
 	L"║  RUN  ║"	\
+	L"║       ║"	\
+	L"║  <F5> ║"	\
 	L"╚═══════╝"	\
 
 
 #define FAST_BTN \
 	L"╔═══════╗"	\
 	L"║       ║"	\
-	L"║       ║"	\
 	L"║  FAST ║"	\
+	L"║       ║"	\
 	L"╚═══════╝"	\
 
 #define BTN_WIDTH 9
@@ -118,11 +184,19 @@ struct NodeBox {
 	std::vector<std::string> lines;
 };
 
+struct StreamBox {
+	int id;
+	StreamType type;
+	SMALL_RECT rect;
+};
+
 std::string puzzlePath;
 std::string programPath;
 
 static long long enterTick;
 static CHAR_INFO descriptionBuffer[DESCRIPTION_WIDTH * DESCRIPTION_HEIGHT];
+static CHAR_INFO inStreamBuffer[IN_STREAM_BOX_WIDTH * IN_STREAM_BOX_HEIGHT];
+static CHAR_INFO outStreamBuffer[OUT_STREAM_BOX_WIDTH * OUT_STREAM_BOX_HEIGHT];
 static CHAR_INFO nodeBuffer[NODE_WIDTH * NODE_HEIGHT];
 static CHAR_INFO errorNodeBuffer[NODE_WIDTH * NODE_HEIGHT];
 static CHAR_INFO memoryNodeBuffer[NODE_WIDTH * NODE_HEIGHT];
@@ -137,11 +211,127 @@ static SMALL_RECT runBtnRect;
 static SMALL_RECT fastBtnRect;
 
 static bool isProgramRunning = false;
+static bool isValidProgram = false;
 static RunState runState = RunState::STOP;
 static Puzzle puzzle;
 static Program program;
 static NodeBox nodes_box[NODE_NUM];
+static std::vector<StreamBox> streamBoxes;
 static int selectedNode = 0;
+static std::vector<std::vector<int>> wrong_lines;
+
+static void DrawStream(StreamBox stream)
+{
+	std::string name = puzzle.streams[stream.id].name;
+	WriteText(name, stream.rect, Align::CenterTop);
+	SMALL_RECT rect = stream.rect;
+	rect.Top += 1;
+	if (stream.type == StreamType::STREAM_IN) {
+		WriteConsoleOutput(hOut, inStreamBuffer, { IN_STREAM_BOX_WIDTH, IN_STREAM_BOX_HEIGHT }, { 0, 0 }, &rect);
+
+		if (isProgramRunning) {
+			const Node& node = nodes[stream.id + PROGRAM_NODES];
+			int s = max(0, node.streamIn.pointer - (IN_STREAM_BOX_HEIGHT - 2) / 2); // -2 for border
+			for (int i = 0; i + s < node.streamIn.data.size() && i < IN_STREAM_BOX_HEIGHT - 2; i++) {
+				std::string value = std::to_string(node.streamIn.data[i + s]);
+				SMALL_RECT valueRect = rect;
+				valueRect.Top += i + 1;
+				valueRect.Bottom = valueRect.Top;
+				valueRect.Left++;
+				valueRect.Right--;
+				WriteText(value, valueRect, Align::RightTop);
+
+				if (node.streamIn.pointer < node.streamIn.data.size()) {
+					if (i + s == node.streamIn.pointer) {
+						DWORD written;
+						COORD leftTop;
+						leftTop.X = (SHORT)rect.Left + 1;
+						leftTop.Y = (SHORT)valueRect.Top;
+						FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, IN_STREAM_BOX_WIDTH - 2, leftTop, &written);
+					}
+				}
+			}
+		}
+		else {
+			Stream rStream = puzzle.streams[stream.id];
+			for (int i = 0; i < rStream.values.size() && i < IN_STREAM_BOX_HEIGHT - 2; i++) {
+				std::string value = std::to_string(rStream.values[i]);
+				SMALL_RECT valueRect = rect;
+				valueRect.Top += i + 1;
+				valueRect.Bottom = valueRect.Top;
+				valueRect.Left++;
+				valueRect.Right--;
+				WriteText(value, valueRect, Align::RightTop);
+			}
+		}
+	}
+	else {
+		WriteConsoleOutput(hOut, outStreamBuffer, { OUT_STREAM_BOX_WIDTH, OUT_STREAM_BOX_HEIGHT }, { 0, 0 }, &rect);
+
+		if (isProgramRunning) {
+			const Node& node = nodes[stream.id + PROGRAM_NODES];
+			int pointer = (int)nodes[stream.id + PROGRAM_NODES].streamOut.data.size() - 1;
+			int s = max(0, pointer - (OUT_STREAM_BOX_HEIGHT - 2) / 2); // -2 for border
+			for (int i = 0; i + s < node.streamOut.answer.size() && i < OUT_STREAM_BOX_HEIGHT - 2; i++) {
+				std::string value = std::to_string(node.streamOut.answer[i + s]);
+				SMALL_RECT valueRect = rect;
+				valueRect.Top += i + 1;
+				valueRect.Bottom = valueRect.Top;
+				valueRect.Left++;
+				valueRect.Right = valueRect.Left + 2;
+				WriteText(value, valueRect, Align::RightTop);
+				if (pointer < node.streamOut.answer.size()) {
+					if (i + s == pointer) {
+						DWORD written;
+						COORD leftTop;
+						leftTop.X = (SHORT)rect.Left + 1;
+						leftTop.Y = (SHORT)valueRect.Top;
+						FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, 3, leftTop, &written);
+					}
+				}
+			}
+
+			for (int i = 0; i + s < node.streamOut.data.size() && i < OUT_STREAM_BOX_HEIGHT - 2; i++) {
+				std::string value = std::to_string(node.streamOut.data[i + s]);
+				SMALL_RECT valueRect = rect;
+				valueRect.Top += i + 1;
+				valueRect.Bottom = valueRect.Top;
+				valueRect.Left += 5;
+				valueRect.Right = valueRect.Left + 2;
+				WriteText(value, valueRect, Align::RightTop);
+				if (pointer < node.streamOut.data.size()) {
+					if (i + s == pointer) {
+						DWORD written;
+						COORD leftTop;
+						leftTop.X = (SHORT)rect.Left + 1;
+						leftTop.Y = (SHORT)valueRect.Top;
+						FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, 3, leftTop, &written);
+					}
+
+					if (node.streamOut.data[i + s] != node.streamOut.answer[i + s]) {
+						DWORD written;
+						COORD leftTop;
+						leftTop.X = (SHORT)rect.Left + 5;
+						leftTop.Y = (SHORT)valueRect.Top;
+						FillConsoleOutputAttribute(hOut, BACKGROUND_RED, 3, leftTop, &written);
+					}
+				}
+			}
+		}
+		else {
+			Stream rStream = puzzle.streams[stream.id];
+			for (int i = 0; i < rStream.values.size() && i < OUT_STREAM_BOX_HEIGHT - 2; i++) {
+				std::string value = std::to_string(rStream.values[i]);
+				SMALL_RECT valueRect = rect;
+				valueRect.Top += i + 1;
+				valueRect.Bottom = valueRect.Top;
+				valueRect.Left++;
+				valueRect.Right = valueRect.Left + 2;
+				WriteText(value, valueRect, Align::RightTop);
+			}
+		}
+	}
+}
 
 static void DrawSidebar()
 {
@@ -166,7 +356,7 @@ static void DrawSidebar()
 			std::stringstream ss(description);
 			std::string s;
 			while (ss >> s) {
-				if (cursor.X + s.size() + 1 >= DESCRIPTION_WIDTH - 2) { // 1 for blank, -2 for padding
+				if ((int)cursor.X + s.size() + 1 >= DESCRIPTION_WIDTH - 2) { // 1 for blank, -2 for padding
 					cursor.X = 0;
 					cursor.Y++;
 				}
@@ -176,9 +366,9 @@ static void DrawSidebar()
 
 				COORD absCurosr = { rect.Left + 1 + cursor.X, rect.Top + 1 + cursor.Y };
 				SetConsoleCursorPosition(hOut, absCurosr);
-				WriteConsoleA(hOut, s.c_str(), s.size(), NULL, NULL);
+				WriteConsoleA(hOut, s.c_str(), (DWORD)s.size(), NULL, NULL);
 
-				cursor.X += s.size();
+				cursor.X += (SHORT)s.size();
 			}
 
 			cursor.X = 0;
@@ -186,6 +376,14 @@ static void DrawSidebar()
 		}
 	}
 
+	// Draw Streams
+	{
+		for (StreamBox stream : streamBoxes) {
+			DrawStream(stream);
+		}
+	}
+
+	// Draw Buttons
 	WriteConsoleOutput(hOut, stopBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &stopBtnRect);
 	WriteConsoleOutput(hOut, stepBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &stepBtnRect);
 	WriteConsoleOutput(hOut, runBtnBuffer, { BTN_WIDTH, BTN_HEIGHT }, { 0, 0 }, &runBtnRect);
@@ -200,7 +398,11 @@ static void DrawNode(NodeBox node)
 		{
 			COORD pos = { node.rect.Left + 1, node.rect.Top + i + 1 };
 			SetConsoleCursorPosition(hOut, pos);
-			WriteConsoleA(hOut, node.lines[i].c_str(), node.lines[i].size(), NULL, NULL);
+			WriteConsoleA(hOut, node.lines[i].c_str(), (DWORD)node.lines[i].size(), NULL, NULL);
+			if (std::find(wrong_lines[node.id].begin(), wrong_lines[node.id].end(), i) != wrong_lines[node.id].end()) {
+				DWORD written;
+				FillConsoleOutputAttribute(hOut, BACKGROUND_RED, LINE_WIDTH, pos, &written);
+			}
 		}
 
 		if (runState == RunState::STOP && node.is_selected) {
@@ -213,7 +415,7 @@ static void DrawNode(NodeBox node)
 			if (nodes[node.id].compute.mode != ComputeNodeMode::IDLE) {
 				int PC = nodes[node.id].compute.PC;
 				int line = nodes[node.id].compute.PC2Line[PC];
-				COORD absCusor = { node.rect.Left + 1, node.rect.Top + 1 + line };
+				COORD absCusor = { (SHORT)node.rect.Left + 1, (SHORT)node.rect.Top + 1 + (SHORT)line };
 				DWORD written;
 				FillConsoleOutputAttribute(hOut, BACKGROUND_INTENSITY, LINE_WIDTH, absCusor, &written);
 			}
@@ -226,20 +428,60 @@ static void DrawNode(NodeBox node)
 			infoRect.Bottom += node.rect.Top;
 			infoRect.Left += node.rect.Left;
 			infoRect.Right += node.rect.Left;
+
+			// ACC
 			WriteText(std::to_string(nodes[node.id].compute.ACC), infoRect, Align::CenterTop);
 
+			// BAK
 			infoRect.Top += 2;
 			infoRect.Bottom += 2;
 			WriteText(std::to_string(nodes[node.id].compute.BAK), infoRect, Align::CenterTop);
 
+			// LAST
 			infoRect.Top += 2;
 			infoRect.Bottom += 2;
 			if (nodes[node.id].LAST == -1) {
 				WriteText("N/A", infoRect, Align::CenterTop);
 			}
 			else {
-				WriteText(std::to_string(nodes[node.id].LAST), infoRect, Align::CenterTop);
+				if (nodes[node.id].LAST == nodes[node.id].LEFT) {
+					WriteText("LEFT", infoRect, Align::CenterTop);
+				}
+				else if (nodes[node.id].LAST == nodes[node.id].RIGHT) {
+					WriteText("RIGHT", infoRect, Align::CenterTop);
+				}
+				else if (nodes[node.id].LAST == nodes[node.id].UP) {
+					WriteText("UP", infoRect, Align::CenterTop);
+				}
+				else if (nodes[node.id].LAST == nodes[node.id].DOWN) {
+					WriteText("DOWN", infoRect, Align::CenterTop);
+				}
+				else {
+					assert(0);
+				}
 			}
+
+			// MODE
+			infoRect.Top += 2;
+			infoRect.Bottom += 2;
+			std::string mode;
+			switch (nodes[node.id].compute.mode) {
+			case ComputeNodeMode::IDLE:
+				mode = "IDLE";
+				break;
+			case ComputeNodeMode::RUN:
+				mode = "RUN";
+				break;
+			case ComputeNodeMode::WRITE:
+				mode = "WRITE";
+				break;
+			case ComputeNodeMode::READ:
+				mode = "READ";
+				break;
+			default:
+				assert(0);
+			}
+			WriteText(mode, infoRect, Align::CenterTop);
 		}
 	}
 	else if (node.type == NodeTileType::TILE_DAMAGED) {
@@ -247,6 +489,218 @@ static void DrawNode(NodeBox node)
 	}
 	else if (node.type == NodeTileType::TILE_MEMORY) {
 		WriteConsoleOutput(hOut, memoryNodeBuffer, { NODE_WIDTH, NODE_HEIGHT }, { 0, 0 }, &node.rect);
+	}
+}
+
+static void DrawNodes()
+{
+	for (NodeBox node : nodes_box) {
+		DrawNode(node);
+	}
+
+	int id = 0;
+	for (Stream stream : puzzle.streams) {
+		if (stream.type == StreamType::STREAM_IN) {
+			SMALL_RECT rect = nodes_box[stream.position].rect;
+			rect.Top -= 1;
+			if (isProgramRunning) {
+				const Node& node = nodes[id + PROGRAM_NODES];
+				if (node.writing) {
+					int digit = (int)std::to_string(node.wValue).size();
+					std::string port = std::string(digit, ' ') + stream.name + " ▼ " + std::to_string(node.wValue);
+					WriteText(port, rect, Align::CenterTop);
+				}
+				else {
+					std::string port = stream.name + " ▽ ";
+					WriteText(port, rect, Align::CenterTop);
+				}
+			}
+			else {
+				std::string port = stream.name + " ▽ ";
+				WriteText(port, rect, Align::CenterTop);
+			}
+		}
+		else if (stream.type == StreamType::STREAM_OUT) {
+			SMALL_RECT rect = nodes_box[stream.position + PROGRAM_WIDTH * (PROGRAM_HEIGHT - 1)].rect;
+			rect.Bottom += 1;
+			if (isProgramRunning) {
+				const Node& node = nodes[stream.position + PROGRAM_WIDTH * (PROGRAM_HEIGHT - 1)];
+				if (node.writing) {
+					int digit = (int)std::to_string(node.wValue).size();
+					std::string port = std::string(digit, ' ') + stream.name + " ▼ " + std::to_string(node.wValue);
+					WriteText(port, rect, Align::CenterBottom);
+				}
+				else {
+					std::string port = stream.name + " ▽ ";
+					WriteText(port, rect, Align::CenterBottom);
+				}
+			}
+			else {
+				std::string port = stream.name + " ▽ ";
+				WriteText(port, rect, Align::CenterBottom);
+			}
+		}
+		else {
+			assert(0);
+		}
+		id++;
+	}
+
+	for (int i = 0; i < PROGRAM_NODES; i++) {
+		bool UP = false;
+		bool DOWN = false;
+		bool LEFT = false;
+		bool RIGHT = false;
+		if (i >= PROGRAM_WIDTH) UP = true;
+		if (i < PROGRAM_WIDTH * (PROGRAM_HEIGHT - 1)) DOWN = true;
+		if (i % PROGRAM_WIDTH != 0) LEFT = true;
+		if (i % PROGRAM_WIDTH != PROGRAM_WIDTH - 1) RIGHT = true;
+		
+		SMALL_RECT rect = nodes_box[i].rect;
+		if (nodes_box[i].type == NodeTileType::TILE_COMPUTE) {
+			if (isProgramRunning) {
+				if (UP) {
+					std::string port;
+					if (nodes[i].writing && (nodes[i].wPort == nodes[i].UP || nodes[i].wAnyPort)) {
+						port = std::to_string(nodes[i].wValue) + " ▲ ";
+					}
+					else if (nodes[i - PROGRAM_WIDTH].reading && (nodes[i - PROGRAM_WIDTH].rPort == i || nodes[i - PROGRAM_WIDTH].rAnyPort)) {
+						port = "? ▲ ";
+					}
+					else {
+						port = "";
+					}
+					rect.Left -= 2;
+					rect.Right -= 2;
+					rect.Top -= 1;
+					WriteText(port, rect, Align::CenterTop);
+					rect.Left += 2;
+					rect.Right += 2;
+					rect.Top += 1;
+				}
+
+				if (DOWN) {
+					std::string port;
+					if (nodes[i].writing && (nodes[i].wPort == nodes[i].DOWN || nodes[i].wAnyPort)) {
+						port = " ▼ " + std::to_string(nodes[i].wValue);
+					}
+					else if (nodes[i + PROGRAM_WIDTH].reading && (nodes[i + PROGRAM_WIDTH].rPort == i || nodes[i + PROGRAM_WIDTH].rAnyPort)) {
+						port = " ▼ ?";
+					}
+					else {
+						port = "";
+					}
+					rect.Left += 2;
+					rect.Right += 2;
+					rect.Bottom += 1;
+					WriteText(port, rect, Align::CenterBottom);
+					rect.Bottom -= 1;
+					rect.Left -= 2;
+					rect.Right -= 2;
+				}
+
+
+				if (LEFT) {
+					std::string port;
+					std::string value;
+					if (nodes[i].writing && (nodes[i].wPort == nodes[i].LEFT || nodes[i].wAnyPort)) {
+						value = std::to_string(nodes[i].wValue);
+						port = "◀";
+					}
+					else if (nodes[i - 1].reading && (nodes[i - 1].rPort == i || nodes[i - 1].rAnyPort)) {
+						value = "?";
+						port = "◀";
+					}
+					else {
+						port = "";
+					}
+					rect.Left -= 3;
+					rect.Top += 1;
+					rect.Bottom += 1;
+					WriteText(port, rect, Align::LeftCenter);
+					rect.Left += 3;
+					rect.Top -= 1;
+					rect.Bottom -= 1;
+
+					rect.Left -= 3;
+					rect.Top += 2;
+					rect.Bottom += 2;
+					WriteText(value, rect, Align::LeftCenter);
+					rect.Left += 3;
+					rect.Top -= 2;
+					rect.Bottom -= 2;
+				}
+
+				if (RIGHT) {
+					std::string port;
+					std::string value;
+					if (nodes[i].writing && (nodes[i].wPort == nodes[i].RIGHT || nodes[i].wAnyPort)) {
+						value = std::to_string(nodes[i].wValue);
+						port = "▶";
+					}
+					else if (nodes[i + 1].reading && (nodes[i + 1].rPort == i || nodes[i + 1].rAnyPort)) {
+						value = "?";
+						port = "▶";
+					}
+					else {
+						port = "";
+					}
+					rect.Right += 3;
+					rect.Top -= 1;
+					rect.Bottom -= 1;
+					WriteText(port, rect, Align::RightCenter);
+					rect.Right -= 3;
+					rect.Top += 1;
+					rect.Bottom += 1;
+
+					rect.Right += 3;
+					rect.Top -= 2;
+					rect.Bottom -= 2;
+					WriteText(value, rect, Align::RightCenter);
+					rect.Right -= 3;
+					rect.Top += 2;
+					rect.Bottom += 2;
+				}
+			}
+			else {
+				std::string port = "△";
+				rect.Left -= 2;
+				rect.Right -= 2;
+				rect.Top -= 1;
+				if (UP) WriteText(port, rect, Align::CenterTop);
+				rect.Left += 2;
+				rect.Right += 2;
+				rect.Top += 1;
+
+				port = "▽";
+				rect.Left += 2;
+				rect.Right += 2;
+				rect.Bottom += 1;
+				if (DOWN) WriteText(port, rect, Align::CenterBottom);
+				rect.Bottom -= 1;
+				rect.Left -= 2;
+				rect.Right -= 2;
+
+
+				port = "◁";
+				rect.Left -= 3;
+				rect.Top += 1;
+				rect.Bottom += 1;
+				if (LEFT) WriteText(port, rect, Align::LeftCenter);
+				rect.Left += 3;
+				rect.Top -= 1;
+				rect.Bottom -= 1;
+
+				port = "▷";
+				rect.Right += 3;
+				rect.Top -= 1;
+				rect.Bottom -= 1;
+				if (RIGHT) WriteText(port, rect, Align::RightCenter);
+				rect.Right -= 3;
+				rect.Top += 1;
+				rect.Bottom += 1;
+			}
+		}
 	}
 }
 
@@ -290,7 +744,7 @@ static void MoveCursorLeftNode(NodeBox& node)
 	else {
 		if (node.cursor.Y > 0) {
 			node.cursor.Y--;
-			node.cursor.X = node.lines[node.cursor.Y].size();
+			node.cursor.X = (SHORT)node.lines[node.cursor.Y].size();
 		}
 	}
 }
@@ -320,7 +774,7 @@ static void BackspaceNode(NodeBox& node)
 	else {
 		if (y > 0 && node.lines[y-1].size() + node.lines[y].size() <= LINE_WIDTH) {
 			y--;
-			x = node.lines[y].size();
+			x = (SHORT)node.lines[y].size();
 			node.lines[y] += node.lines[y + 1];
 			node.lines.erase(node.lines.begin() + y + 1);
 		}
@@ -362,9 +816,21 @@ void SceneInGameEnter()
 		descriptionBuffer[i].Attributes = FOREGROUND_WHITE;
 	}
 
+	for (int i = 0; i < IN_STREAM_BOX_WIDTH * IN_STREAM_BOX_HEIGHT; i++)
+	{
+		inStreamBuffer[i].Char.UnicodeChar = IN_STREAM_BOX[i];
+		inStreamBuffer[i].Attributes = FOREGROUND_WHITE;
+	}
+
+	for (int i = 0; i < OUT_STREAM_BOX_WIDTH * OUT_STREAM_BOX_HEIGHT; i++)
+	{
+		outStreamBuffer[i].Char.UnicodeChar = OUT_STREAM_BOX[i];
+		outStreamBuffer[i].Attributes = FOREGROUND_WHITE;
+	}
+
 	for (int i = 0; i < NODE_WIDTH * NODE_HEIGHT; i++)
 	{
-		nodeBuffer[i].Char.UnicodeChar = COMPUTE_NODE[i];
+		nodeBuffer[i].Char.UnicodeChar = COMPUTE_NODE_[i];
 		nodeBuffer[i].Attributes = FOREGROUND_WHITE;
 
 		errorNodeBuffer[i].Char.UnicodeChar = DAMAGED_NODE[i];
@@ -415,6 +881,41 @@ void SceneInGameEnter()
 	puzzle = LoadPuzzle(puzzlePath);
 	program = LoadProgram(programPath);
 
+	wrong_lines = IsValidProgram(puzzle, program);
+	isValidProgram = true;
+	for (auto& lines : wrong_lines)
+	{
+		if (!lines.empty())
+		{
+			isValidProgram = false;
+			break;
+		}
+	}
+
+	COORD streamLeftTop = { 3, 12 };
+	for (int i = 0; i < puzzle.streams.size(); i++) {
+		StreamBox stream;
+		stream.id = i;
+		stream.rect;
+		if (puzzle.streams[i].type == StreamType::STREAM_IN) {
+			stream.type = StreamType::STREAM_IN;
+			stream.rect.Left = streamLeftTop.X;
+			stream.rect.Right = streamLeftTop.X + IN_STREAM_BOX_WIDTH - 1;
+			stream.rect.Top = streamLeftTop.Y;
+			stream.rect.Bottom = streamLeftTop.Y + IN_STREAM_BOX_HEIGHT - 1 + 1; // +1 for padding
+			streamLeftTop.X = stream.rect.Right + 1;
+		}
+		else if (puzzle.streams[i].type == StreamType::STREAM_OUT) {
+			stream.type = StreamType::STREAM_OUT;
+			stream.rect.Left = streamLeftTop.X;
+			stream.rect.Right = streamLeftTop.X + OUT_STREAM_BOX_WIDTH - 1;
+			stream.rect.Top = streamLeftTop.Y;
+			stream.rect.Bottom = streamLeftTop.Y + OUT_STREAM_BOX_HEIGHT - 1 + 1; // +1 for padding
+			streamLeftTop.X = stream.rect.Right + 1;
+		}
+		streamBoxes.push_back(stream);
+	}
+
 	for (int i = 0; i < NODE_NUM; i++) {
 		nodes_box[i].id = i;
 		nodes_box[i].type = puzzle.layout[i];
@@ -462,31 +963,38 @@ static void Stop()
 
 static void Step()
 {
-	if (!isProgramRunning) {
-		InitVM(puzzle, program);
-		isProgramRunning = true;
+	if (isValidProgram) {
+		if (!isProgramRunning) {
+			InitVM(puzzle, program);
+			isProgramRunning = true;
+		}
+		else {
+			TickVM();
+		}
+		runState = RunState::STEP;
 	}
-
-	runState = RunState::STEP;
-	TickVM();
 }
 
 static void Run()
 {
-	if (!isProgramRunning) {
-		InitVM(puzzle, program);
-		isProgramRunning = true;
+	if (isValidProgram) {
+		if (!isProgramRunning) {
+			InitVM(puzzle, program);
+			isProgramRunning = true;
+		}
+		runState = RunState::RUN;
 	}
-	runState = RunState::RUN;
 }
 
 static void Fast()
 {
-	if (!isProgramRunning) {
-		InitVM(puzzle, program);
-		isProgramRunning = true;
+	if (isValidProgram) {
+		if (!isProgramRunning) {
+			InitVM(puzzle, program);
+			isProgramRunning = true;
+		}
+		runState = RunState::FAST;
 	}
-	runState = RunState::FAST;
 }
 
 void SceneInGameUpdate()
@@ -495,62 +1003,106 @@ void SceneInGameUpdate()
 		TickVM();
 	}
 	else if (runState == RunState::FAST) {
-		for (int iter = 0; iter < 100; iter++)
+		for (int iter = 0; iter < 91; iter++)
 			TickVM();
 	}
+
+	//if (isProgramRunning) {
+	//	bool isDone = true;
+	//	for (int i = 0; i < nodes.size(); i++) {
+	//		if (nodes[i].type == NodeType::STREAM_OUT_NODE) {
+	//			if (nodes[i].streamOut.data.size() < nodes[i].streamOut.answer.size()) {
+	//				isDone = false;
+	//			}
+	//		}
+	//	}
+
+	//	if (isDone) {
+	//		runState = RunState::STOP;
+	//		ExitVM();
+	//		isProgramRunning = false;
+	//	}
+	//}
 }
 
 void SceneInGameRender()
 {
-	for (int i = 0; i < NODE_NUM; i++)
-	{
-		DrawNode(nodes_box[i]);
-	}
+	DrawNodes();
 	DrawSidebar();
 }
 
 void SceneInGameExit()
 {
+	streamBoxes.clear();
 }
 
 void SceneInGameKeyEventProc(KEY_EVENT_RECORD ker)
 {
-	if (isProgramRunning) return;
-
-	if (ker.bKeyDown == FALSE) {
-		if (ker.wVirtualKeyCode == VK_ESCAPE) {
-			ChangeScene(SceneName::Main);
+	if (isProgramRunning) {
+		if (ker.bKeyDown == FALSE) {
+			if (ker.wVirtualKeyCode == VK_ESCAPE) {
+				Stop();
+			}
+			else if (ker.wVirtualKeyCode == VK_F9) {
+				Step();
+			}
+			else if (ker.wVirtualKeyCode == VK_F5) {
+				Run();
+			}
 		}
 	}
-	else if (ker.bKeyDown == TRUE) {
-		if (ker.wVirtualKeyCode == VK_RETURN) {
-			NewLineNode(nodes_box[selectedNode]);
+	else {
+		if (ker.bKeyDown == FALSE) {
+			if (ker.wVirtualKeyCode == VK_ESCAPE) {
+				ChangeScene(SceneName::Main);
+			}
+			else if (ker.wVirtualKeyCode == VK_F9) {
+				Step();
+			}
+			else if (ker.wVirtualKeyCode == VK_F5) {
+				Run();
+			}
 		}
-		else if (ker.wVirtualKeyCode == VK_UP) {
-			MoveCusorUpNode(nodes_box[selectedNode]);
-		}
-		else if (ker.wVirtualKeyCode == VK_DOWN) {
-			MoveCursorDownNode(nodes_box[selectedNode]);
-		}
-		else if (ker.wVirtualKeyCode == VK_LEFT) {
-			MoveCursorLeftNode(nodes_box[selectedNode]);
-		}
-		else if (ker.wVirtualKeyCode == VK_RIGHT) {
-			MoveCursorRightNode(nodes_box[selectedNode]);
-		}
-		else if (ker.wVirtualKeyCode == VK_BACK) {
-			BackspaceNode(nodes_box[selectedNode]);
-		}
-		else if (ker.wVirtualKeyCode == VK_DELETE) {
-			DeleteNode(nodes_box[selectedNode]);
-		}
-		else if (isprint(ker.uChar.AsciiChar)) {
-			WriteCharToNode(nodes_box[selectedNode], ker.uChar.AsciiChar);
-		}
+		else if (ker.bKeyDown == TRUE) {
+			if (ker.wVirtualKeyCode == VK_RETURN) {
+				NewLineNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_UP) {
+				MoveCusorUpNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_DOWN) {
+				MoveCursorDownNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_LEFT) {
+				MoveCursorLeftNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_RIGHT) {
+				MoveCursorRightNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_BACK) {
+				BackspaceNode(nodes_box[selectedNode]);
+			}
+			else if (ker.wVirtualKeyCode == VK_DELETE) {
+				DeleteNode(nodes_box[selectedNode]);
+			}
+			else if (isprint(ker.uChar.AsciiChar)) {
+				WriteCharToNode(nodes_box[selectedNode], ker.uChar.AsciiChar);
+			}
 
-		AdaptNodeLines();
-		SaveProgram(programPath, program);
-		program = LoadProgram(programPath);
+			AdaptNodeLines();
+			SaveProgram(programPath, program);
+			program = LoadProgram(programPath);
+			wrong_lines = IsValidProgram(puzzle, program);
+			isValidProgram = true;
+			for (auto& lines : wrong_lines)
+			{
+				if (!lines.empty())
+				{
+					isValidProgram = false;
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -574,12 +1126,12 @@ void SceneInGameMouseEventProc(MOUSE_EVENT_RECORD mer)
 				y -= nodes_box[i].rect.Top + 1;
 
 				if (y < nodes_box[i].lines.size()) {
-					nodes_box[i].cursor.X = min(x, nodes_box[i].lines[y].length());
-					nodes_box[i].cursor.Y = y;
+					nodes_box[i].cursor.X = (SHORT)min(x, nodes_box[i].lines[y].length());
+					nodes_box[i].cursor.Y = (SHORT)y;
 				}
 				else {
-					nodes_box[i].cursor.Y = nodes_box[i].lines.size() - 1;
-					nodes_box[i].cursor.X = nodes_box[i].lines[nodes_box[i].cursor.Y].length();
+					nodes_box[i].cursor.Y = (SHORT)nodes_box[i].lines.size() - 1;
+					nodes_box[i].cursor.X = (SHORT)nodes_box[i].lines[nodes_box[i].cursor.Y].length();
 				}
 			}
 		}

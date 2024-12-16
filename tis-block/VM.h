@@ -6,6 +6,8 @@
 #include "FileSystem.h"
 
 #define PROGRAM_NODES 12
+#define PROGRAM_WIDTH 4
+#define PROGRAM_HEIGHT 3
 #define MAX_ACC 999
 #define MIN_ACC -999
 
@@ -65,9 +67,11 @@ struct Instruction {
 };
 
 enum class NodeType {
-	ComputeNode,
-	MemoryNode,
-	DamagedNode,
+	COMPUTE_NODE,
+	MEMORY_NODE,
+	DAMAGED_NODE,
+	STREAM_IN_NODE,
+	STREAM_OUT_NODE,
 };
 
 enum class ComputeNodeMode {
@@ -82,6 +86,9 @@ struct ComputeNode {
 	int BAK;
 
 	int PC;
+
+	bool isRead = false; // for MOV instruction
+	int readValue = 0; // for MOV instruction
 
 	ComputeNodeMode mode;
 
@@ -98,6 +105,20 @@ struct MemoryNode {
 struct DamagedNode {
 };
 
+struct StreamInNode {
+	std::string name;
+	int pointer;
+	std::vector<int> data;
+	int position;
+};
+
+struct StreamOutNode {
+	std::string name;
+	std::vector<int> data;
+	std::vector<int> answer;
+	int position;
+};
+
 struct Node {
 	int id;
 	NodeType type;
@@ -106,19 +127,28 @@ struct Node {
 	ComputeNode compute;
 	MemoryNode memory;
 	DamagedNode damaged;
+	StreamInNode streamIn;
+	StreamOutNode streamOut;
 
+	bool willWrite;
 	bool writing;
-	bool reading;
-	bool anyPort;
-	int rwPort;
-	int outValue;
+	bool writed;
+	bool wAnyPort;
+	int wPort;
+	int wValue;
 
-	int LAST;
-	int UP, DOWN, LEFT, RIGHT;
+	bool reading;
+	bool read;
+	bool rAnyPort;
+	int rPort;
+	int rValue;
+
+	int LAST, UP, DOWN, LEFT, RIGHT;
 };
 
 extern std::vector<Node> nodes;
 
+std::vector<std::vector<int>> IsValidProgram(Puzzle puzzle, Program program);
 void InitVM(Puzzle puzzle, Program program);
 void TickVM();
 void ExitVM();

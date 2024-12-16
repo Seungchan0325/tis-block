@@ -13,103 +13,6 @@
 
 namespace fs = std::filesystem;
 
-#define SIDE_BAR_WITH_SEGMENT	\
-	L"                                                  " \
-	L"                - SEQUENCE COUNTER -              " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔════════════════════════════════════════════╗ " \
-	L"   ║                                            ║ " \
-	L"   ║                                            ║ " \
-	L"   ╚════════════════════════════════════════════╝ " \
-	L"               CYCLE COUNT STATISTICS             " \
-	L"   ╔═════════════════╗ ╔════════════════════════╗ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ╚═════════════════╝ ╚════════════════════════╝ " \
-	L"               NODE COUNT STATISTICS              " \
-	L"   ╔═════════════════╗ ╔════════════════════════╗ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ╚═════════════════╝ ╚════════════════════════╝ " \
-	L"            INSTRUCTION COUNT STATISTICS          " \
-	L"   ╔═════════════════╗ ╔════════════════════════╗ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ║                 ║ ║                        ║ " \
-	L"   ╚═════════════════╝ ╚════════════════════════╝ " \
-
-#define SIDE_BAR_SANDBOX	\
-	L"                                                  " \
-	L"                 - SIMPLE SANDBOX -               " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"   ╔═════════════════════════════════╗ ╔════════╗ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ║                                 ║ ║        ║ " \
-	L"   ╚═════════════════════════════════╝ ╚════════╝ " \
-	L"                                                  " \
-	L"   ╔════════════════════════════════════════════╗ " \
-	L"   ║                                            ║ " \
-	L"   ║                                            ║ " \
-	L"   ╚════════════════════════════════════════════╝ " \
-	L"                                                  " \
-	L"                                                  " \
-
-#define SIDEBAR_WIDTH 50
-#define SIDEBAR_HEIGHT 45
-
 #define PROGRAM_TEMPLATE	\
 	L"╔═════════════════════════════════╗" \
 	L"║                                 ║" \
@@ -121,7 +24,7 @@ namespace fs = std::filesystem;
 
 #define PROGRAM_COPY	\
 	L"╔════════╗" \
-	L"║  COPY  ║" \
+	L"║ DELETE ║" \
 	L"║        ║" \
 	L"╚════════╝" \
 
@@ -140,8 +43,10 @@ namespace fs = std::filesystem;
 #define PUZZLE_WIDTH 19
 #define PUZZLE_HEIGHT 7
 
-#define PROGRAM_NUM 3
+#define PROGRAM_NUM 10
 #define PUZZLE_NUM 25
+
+#define PROGRAM_NODES 12
 
 struct ProgramBox {
 	bool isExist;
@@ -165,6 +70,7 @@ static CHAR_INFO programTemplateBuffer[PROGRAM_TEMPLATE_WIDTH * PROGRAM_TEMPLATE
 static CHAR_INFO programCopyEnabledBuffer[PROGRAM_COPY_WIDTH * PROGRAM_COPY_HEIGHT];
 static CHAR_INFO programCopyDisabledBuffer[PROGRAM_COPY_WIDTH * PROGRAM_COPY_HEIGHT];
 static CHAR_INFO puzzleBuffer[PUZZLE_WIDTH * PUZZLE_HEIGHT];
+static CHAR_INFO selectedPuzzleBuffer[PUZZLE_WIDTH * PUZZLE_HEIGHT];
 static ProgramBox programs[PROGRAM_NUM];
 static PuzzleBox puzzles[PUZZLE_NUM];
 static int selectedPuzzle = 0;
@@ -182,10 +88,11 @@ static void DrawProgram(ProgramBox program)
 	}
 }
 
-static void DrawPuzzle(PuzzleBox puzzle)
+static void DrawPuzzle(PuzzleBox puzzle, bool selected)
 {
 	WriteText(puzzle.name, puzzle.rect, Align::CenterTop);
-	WriteConsoleOutput(hOut, puzzleBuffer, { PUZZLE_WIDTH, PUZZLE_HEIGHT }, { 0, 0 }, &puzzle.btnRect);
+	if(selected) WriteConsoleOutput(hOut, selectedPuzzleBuffer, { PUZZLE_WIDTH, PUZZLE_HEIGHT }, { 0, 0 }, &puzzle.btnRect);
+	else WriteConsoleOutput(hOut, puzzleBuffer, { PUZZLE_WIDTH, PUZZLE_HEIGHT }, { 0, 0 }, &puzzle.btnRect);
 }
 
 static void DrawSidebar()
@@ -199,7 +106,7 @@ static void DrawSidebar()
 	rect.Top = rect.Bottom = 2;
 	WriteText("- SEQUENCE COUNTER -", rect, Align::Center);
 
-	for (short i = 0; i < 3; i++) {
+	for (short i = 0; i < PROGRAM_NUM; i++) {
 		DrawProgram(programs[i]);
 	}
 }
@@ -243,6 +150,9 @@ void SceneMainEnter()
 	for (int i = 0; i < PUZZLE_WIDTH * PUZZLE_HEIGHT; i++) {
 		puzzleBuffer[i].Char.UnicodeChar = PUZZLE[i];
 		puzzleBuffer[i].Attributes = FOREGROUND_WHITE;
+
+		selectedPuzzleBuffer[i].Char.UnicodeChar = PUZZLE[i];
+		selectedPuzzleBuffer[i].Attributes = FOREGROUND_INTENSITY;
 	}
 
 	// load puzzles
@@ -314,7 +224,7 @@ void SceneMainRender()
 {
 	DrawSidebar();
 	for (int i = 0; i < PUZZLE_NUM; i++) {
-		DrawPuzzle(puzzles[i]);
+		DrawPuzzle(puzzles[i], i == selectedPuzzle);
 	}
 }
 
@@ -342,7 +252,12 @@ void SceneMainMouseEventProc(MOUSE_EVENT_RECORD mer)
 			}
 			else if (InRect(mer.dwMousePosition, programs[i].templateRect) && !programs[i].isExist && puzzles[selectedPuzzle].isExist) {
 				Program program;
+				program.nodes.resize(PROGRAM_NODES);
 				SaveProgram(programs[i].path, program);
+				LoadPrograms(); // reload
+			}
+			else if (InRect(mer.dwMousePosition, programs[i].copyRect) && programs[i].isExist) {
+				fs::remove(programs[i].path);
 				LoadPrograms(); // reload
 			}
 		}
@@ -352,11 +267,9 @@ void SceneMainMouseEventProc(MOUSE_EVENT_RECORD mer)
 		if (mer.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED && mer.dwEventFlags == 0) {
 			if (InRect(mer.dwMousePosition, puzzles[i].btnRect)) {
 				selectedPuzzle = i;
+				puzzlePath = puzzles[i].path;
 				LoadPrograms();
 			}
 		}
 	}
-	//if (mer.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED && mer.dwEventFlags == 0) {
-	//	ChangeScene(SceneName::InGame);
-	//}
 }

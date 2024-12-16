@@ -30,7 +30,7 @@ static void _StartupScene(SceneName scene)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}
@@ -57,7 +57,7 @@ static void _UpdateScene(SceneName scene)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}
@@ -84,7 +84,7 @@ static void _RenderScene(SceneName scene)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}
@@ -111,7 +111,7 @@ static void _ExitScene(SceneName scene)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}
@@ -138,7 +138,7 @@ static void _SceneMouseEventProc(SceneName scene, MOUSE_EVENT_RECORD mer)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}
@@ -165,7 +165,7 @@ static void _SceneKeyEventProc(SceneName scene, KEY_EVENT_RECORD ker)
 		break;
 	}
 	default: {
-		ErrorExit("switch exception");
+		assert(0);
 		break;
 	}
 	}

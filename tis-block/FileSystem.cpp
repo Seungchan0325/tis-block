@@ -35,8 +35,8 @@ static Stream PuzzleParseStream(std::ifstream& file)
 	Stream stream;
 	std::string line;
 	std::getline(file, line);
-	if (line == "STREAM_INPUT") stream.type = StreamType::STREAM_INPUT;
-	else if (line == "STREAM_OUTPUT") stream.type = StreamType::STREAM_OUTPUT;
+	if (line == "STREAM_INPUT") stream.type = StreamType::STREAM_IN;
+	else if (line == "STREAM_OUTPUT") stream.type = StreamType::STREAM_OUT;
 	else ErrorExit("unknown stream type");
 
 	std::getline(file, line);
@@ -109,13 +109,13 @@ Program LoadProgram(std::string path)
 	std::string line;
 	while (std::getline(file, line))
 	{
-		if (line.empty()) continue;
+		//if (line.empty()) continue;
 
 		if (line[0] == '@') {
 			index = std::stoi(line.substr(1));
 		}
 		else {
-			if (int name_start = line.find("##"); program.name.empty() && name_start != std::string::npos) {
+			if (int name_start = (int)line.find("##"); program.name.empty() && name_start != std::string::npos) {
 				name_start += 2; // skip "##"
 				std::string name = line.substr(name_start);
 				trim(name);

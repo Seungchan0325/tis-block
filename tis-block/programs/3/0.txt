@@ -1,0 +1,32 @@
+@0
+MOV UP, ACC
+ADD 3
+MOV ACC, DOWN
+@1
+
+@2
+
+@3
+
+@4
+MOV UP, ACC
+@5
+@6
+@7
+@8
+MOV UP, RIGHT
+@9
+S: MOV LEFT, ACC
+MOV ACC, RIGHT
+JRO ACC
+JMP Z
+JMP Z
+JMP Z
+JMP O
+JMP O
+Z: MOV 0, DOWN
+JMP S
+@10
+
+@11
+

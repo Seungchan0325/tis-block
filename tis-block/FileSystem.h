@@ -15,8 +15,8 @@ enum class NodeTileType {
 };
 
 enum class StreamType {
-	STREAM_INPUT,
-	STREAM_OUTPUT,
+	STREAM_IN,
+	STREAM_OUT,
 };
 
 struct Stream {

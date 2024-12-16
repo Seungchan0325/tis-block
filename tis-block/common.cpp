@@ -65,7 +65,7 @@ void WriteText(std::string text, SMALL_RECT rect, Align align) {
         coord.Y = rect.Top;
         break;
     case Align::RightTop:
-        coord.X = rect.Right - textLength;
+        coord.X = rect.Right - textLength + 1;
         coord.Y = rect.Top;
         break;
     case Align::LeftCenter:
@@ -77,7 +77,7 @@ void WriteText(std::string text, SMALL_RECT rect, Align align) {
         coord.Y = rect.Top + (rect.Bottom - rect.Top) / 2;
         break;
     case Align::RightCenter:
-        coord.X = rect.Right - textLength;
+        coord.X = rect.Right - textLength + 1;
         coord.Y = rect.Top + (rect.Bottom - rect.Top) / 2;
         break;
     case Align::LeftBottom:
@@ -89,7 +89,7 @@ void WriteText(std::string text, SMALL_RECT rect, Align align) {
         coord.Y = rect.Bottom;
         break;
     case Align::RightBottom:
-        coord.X = rect.Right - textLength;
+        coord.X = rect.Right - textLength + 1;
         coord.Y = rect.Bottom;
         break;
     }
