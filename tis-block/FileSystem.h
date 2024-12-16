@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 
 #define NODE_NUM 12
@@ -42,8 +43,16 @@ struct Program {
 	std::vector<NodeData> nodes;
 };
 
+struct SaveData {
+	std::map<std::string, bool> isSolved;
+};
+
 Puzzle LoadPuzzle(std::string path);
 
 Program LoadProgram(std::string path);
 
 void SaveProgram(std::string path, Program program);
+
+SaveData LoadSaveData(std::string path);
+
+void SaveSaveData(std::string path, SaveData saveData);

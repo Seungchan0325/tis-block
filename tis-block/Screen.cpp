@@ -18,10 +18,17 @@ BOOL ScreenInit()
     if (hOut == INVALID_HANDLE_VALUE) {
         return FALSE;
     }
-
+    
+    // it is only for me
     if (!SetConsoleDisplayMode(hOut, CONSOLE_FULLSCREEN_MODE, NULL)) {
         return FALSE;
     }
+
+    // 콘솔 창을 최대화
+    //HWND hwndConsole = GetConsoleWindow();
+    //if (hwndConsole != NULL) {
+    //    ShowWindow(hwndConsole, SW_MAXIMIZE);
+    //}
 
     if (!SetConsoleScreenBufferSize(hOut, { SCREEN_WIDTH, SCREEN_HEIGHT })) {
         return FALSE;
@@ -41,7 +48,7 @@ BOOL ScreenInit()
 	if (hOutDouble[0] == INVALID_HANDLE_VALUE || hOutDouble[1] == INVALID_HANDLE_VALUE) {
 		return FALSE;
 	}
-
+    
     CONSOLE_CURSOR_INFO cursor = {};
     cursor.bVisible = FALSE;
     cursor.dwSize = 1;

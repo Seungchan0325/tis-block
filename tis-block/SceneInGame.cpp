@@ -1007,22 +1007,35 @@ void SceneInGameUpdate()
 			TickVM();
 	}
 
-	//if (isProgramRunning) {
-	//	bool isDone = true;
-	//	for (int i = 0; i < nodes.size(); i++) {
-	//		if (nodes[i].type == NodeType::STREAM_OUT_NODE) {
-	//			if (nodes[i].streamOut.data.size() < nodes[i].streamOut.answer.size()) {
-	//				isDone = false;
-	//			}
-	//		}
-	//	}
+	if (isProgramRunning) {
+		bool isDone = true;
+		for (int i = 0; i < nodes.size(); i++) {
+			if (nodes[i].type == NodeType::STREAM_OUT_NODE) {
+				if (nodes[i].streamOut.data.size() < nodes[i].streamOut.answer.size()) {
+					isDone = false;
+				}
+			}
+		}
 
-	//	if (isDone) {
-	//		runState = RunState::STOP;
-	//		ExitVM();
-	//		isProgramRunning = false;
-	//	}
-	//}
+		bool solved = true;
+		if (isDone) {
+			for (int i = 0; i < nodes.size(); i++) {
+				if (nodes[i].type == NodeType::STREAM_OUT_NODE) {
+					if (nodes[i].streamOut.data != nodes[i].streamOut.answer) {
+						solved = false;
+						break;
+					}
+				}
+			}
+			runState = RunState::STOP;
+			ExitVM();
+			isProgramRunning = false;
+
+			SaveData saveData = LoadSaveData("./save.txt");
+			saveData.isSolved[puzzlePath] |= solved;
+			SaveSaveData("./save.txt", saveData);
+		}
+	}
 }
 
 void SceneInGameRender()
@@ -1043,11 +1056,13 @@ void SceneInGameKeyEventProc(KEY_EVENT_RECORD ker)
 			if (ker.wVirtualKeyCode == VK_ESCAPE) {
 				Stop();
 			}
-			else if (ker.wVirtualKeyCode == VK_F9) {
-				Step();
-			}
 			else if (ker.wVirtualKeyCode == VK_F5) {
 				Run();
+			}
+		}
+		else {
+			if (ker.wVirtualKeyCode == VK_F9) {
+				Step();
 			}
 		}
 	}

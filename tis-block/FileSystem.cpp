@@ -151,3 +151,34 @@ void SaveProgram(std::string path, Program program)
 
 	file.close();
 }
+
+SaveData LoadSaveData(std::string path)
+{
+	std::ifstream file;
+	file.open(path);
+	if (file.is_open() == false) ErrorExit("file not found");
+	SaveData saveData;
+	while (file.eof() == false)
+	{
+		std::string line;
+		std::getline(file, line);
+		if (line.empty()) continue;
+		std::string key = line.substr(0, line.find(' '));
+		std::string value = line.substr(line.find(' ') + 1);
+		saveData.isSolved[key] = std::stoi(value);
+	}
+	file.close();
+	return saveData;
+}
+
+void SaveSaveData(std::string path, SaveData saveData)
+{
+	std::ofstream file;
+	file.open(path);
+	if (file.is_open() == false) ErrorExit("failed to save");
+	for (auto& [key, value] : saveData.isSolved)
+	{
+		file << key << " " << value << std::endl;
+	}
+	file.close();
+}

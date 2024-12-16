@@ -75,6 +75,8 @@ static ProgramBox programs[PROGRAM_NUM];
 static PuzzleBox puzzles[PUZZLE_NUM];
 static int selectedPuzzle = 0;
 
+static SaveData saveData;
+
 static void DrawProgram(ProgramBox program)
 {
 	WriteConsoleOutput(hOut, programTemplateBuffer, { PROGRAM_TEMPLATE_WIDTH, PROGRAM_TEMPLATE_HEIGHT }, { 0, 0 }, &program.templateRect);
@@ -93,6 +95,13 @@ static void DrawPuzzle(PuzzleBox puzzle, bool selected)
 	WriteText(puzzle.name, puzzle.rect, Align::CenterTop);
 	if(selected) WriteConsoleOutput(hOut, selectedPuzzleBuffer, { PUZZLE_WIDTH, PUZZLE_HEIGHT }, { 0, 0 }, &puzzle.btnRect);
 	else WriteConsoleOutput(hOut, puzzleBuffer, { PUZZLE_WIDTH, PUZZLE_HEIGHT }, { 0, 0 }, &puzzle.btnRect);
+
+	if (saveData.isSolved[puzzle.path]) {
+		WriteText("SOLVED", puzzle.btnRect, Align::Center);
+	}
+	else {
+		WriteText("NOT SOLVED", puzzle.btnRect, Align::Center);
+	}
 }
 
 static void DrawSidebar()
@@ -167,7 +176,7 @@ void SceneMainEnter()
 		}
 		else {
 			puzzles[i].isExist = false;
-			puzzles[i].name = "CREATE NEW PUZZLE";
+			puzzles[i].name = "LOCKED";
 		}
 		
 
@@ -180,7 +189,7 @@ void SceneMainEnter()
 		int left = 51 + x * (width + 2);
 
 		puzzles[i].rect.Top = top;
-		puzzles[i].rect.Bottom = puzzles[i].btnRect.Bottom;
+		puzzles[i].rect.Bottom = puzzles[i].rect.Top + PUZZLE_HEIGHT;
 		puzzles[i].rect.Left = left;
 		puzzles[i].rect.Right = puzzles[i].rect.Left + PUZZLE_WIDTH - 1;
 
@@ -212,8 +221,13 @@ void SceneMainEnter()
 		programs[i].copyRect = copyRect;
 	}
 
-	selectedPuzzle = 0;
 	LoadPrograms();
+
+	if (!fs::exists("./save.txt")) {
+		saveData = SaveData();
+		SaveSaveData("./save.txt", saveData);
+	}
+	saveData = LoadSaveData("./save.txt");
 }
 
 void SceneMainUpdate()
